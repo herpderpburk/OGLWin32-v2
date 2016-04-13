@@ -1,0 +1,1 @@
+astyle --style=allman -p -U -xe -k3 -W1 -xy --recursive *.cpp *.h

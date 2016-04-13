@@ -1,0 +1,117 @@
+#include "OGLScatterPlot.h"
+#include <Windows.h>
+#include <gl/GL.h>
+#include <map>
+#include <sstream>
+using namespace std;
+
+OGLScatterPlot::OGLScatterPlot(void)
+{
+    m_hasAxes = true;
+    m_oxMax = 0;
+    m_oyMax = 0;
+    m_oxMin = 0;
+    m_oyMin = 0;
+    m_textColor = Color3ub(255, 0, 0);
+    m_color = Color3ub::random();
+    m_selectedPoint = NULL;
+}
+
+
+OGLScatterPlot::~OGLScatterPlot(void)
+{
+}
+
+void OGLScatterPlot::GeneratePlots(map<double, double> *data)
+{
+    //find ox and oy max values
+    //calculate plot values based on the screen size, point value and max
+    m_pointList.clear();
+    for(auto it = data->begin(); it != data->end(); ++it)
+    {
+        m_oxMax = m_oxMax < it->first ? it->first : m_oxMax;
+        m_oyMax = m_oyMax < it->second ? it->second : m_oyMax;
+        m_oxMin = m_oxMin >= it->first ? it->first : m_oxMin;
+        m_oyMin = m_oyMin >= it->second ? it->second : m_oyMin;
+    }
+    for(auto it = data->begin(); it != data->end(); ++it)
+    {
+        Point2d p(it->first * m_chartWidth / m_oxMax, it->second * m_chartHeight / m_oxMax);
+        m_pointList.push_back(p);
+    }
+}
+
+double Distance(Point2d p1, Point2d p2)
+{
+    return sqrt(pow((p1.X() - p2.X()), 2) + pow(p1.Y() - p2.Y(), 2));
+}
+
+void OGLScatterPlot::Render()
+{
+    double threshold = 5;
+    DrawCoordinateAxes();
+    DrawLegend();
+    glColor3ub(m_color.R(), m_color.G(), m_color.B());
+    glPointSize(3.0f);
+    glEnable(GL_POINT_SMOOTH);
+    glBegin(GL_POINTS);
+    for each(Point2d oin in m_pointList)
+    {
+        if(m_selectedPoint != NULL && Point2d::Distance(oin, *m_selectedPoint) < threshold)
+            glColor3ub(255 - m_color.R(), 255 - m_color.G(), 255 - m_color.B());
+        else if(m_selectedPoint != NULL)
+            glColor3ub(m_color.R(), m_color.G(), m_color.B());
+        glVertex2d(oin.X(), oin.Y());
+    }
+    glEnd();
+}
+
+void OGLScatterPlot::DrawLegend()
+{
+    //draw a few strings on the ox axis
+    double start = 0;
+    int pointCount = 5;
+    double stepX = m_chartWidth / pointCount;
+    for(int i = 1; i <= pointCount; i++)
+    {
+        double value = m_oxMax / pointCount * i;
+        double positionX = start + stepX * i;
+        wostringstream strs;
+        strs << value;
+        DrawStr(positionX, -10, m_textColor, strs.str());
+    }
+    //and on the oy
+    start = 0;
+    double stepY = m_chartHeight / pointCount;
+    for(int i = 1; i <= pointCount; i++)
+    {
+        double value = m_oyMax / pointCount * i;
+        double positionY = start + stepY * i;
+        wostringstream strs;
+        strs << value;
+        DrawStr(-20, positionY, m_textColor, strs.str());
+    }
+}
+
+
+bool OGLScatterPlot::MouseMove(int x, int y)
+{
+    return true;
+}
+
+bool OGLScatterPlot::MouseLBUp(int x, int y)
+{
+    ToOGLCoordinates(x, y);
+    if(m_selectedPoint != NULL)
+    {
+        delete m_selectedPoint;
+        m_selectedPoint = NULL;
+    }
+    m_selectedPoint = new Point2d(x, y);
+    return true;
+}
+
+bool OGLScatterPlot::MouseLBDown(int x, int y)
+{
+    return true;
+}
